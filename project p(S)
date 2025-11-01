@@ -1,0 +1,204 @@
+# Enhanced Quiz Performance Dashboard - Pastel + Professional Theme
+# This file was rewritten to handle environments where matplotlib may not be available.
+# If matplotlib is present, a pie chart will be shown. Otherwise a Tkinter canvas-based pie will be drawn.
+
+import tkinter as tk
+from tkinter import messagebox, ttk
+
+# Try to import matplotlib; if unavailable, we'll draw a simple pie using Tkinter Canvas
+try:
+    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+    MATPLOTLIB_AVAILABLE = True
+except Exception:
+    MATPLOTLIB_AVAILABLE = False
+
+# ------------------- QUIZ DATA (10 Python questions) -------------------
+questions = [
+    ("Who developed the Python programming language?", ["Guido van Rossum", "Dennis Ritchie", "James Gosling"], 0),
+    ("Which of the following is a Python immutable type?", ["list", "tuple", "dict"], 1),
+    ("Which keyword is used to create a function in Python?", ["func", "define", "def"], 2),
+    ("Which of the following is used to create a comment in Python?", ["//", "#", "<!-- -->"], 1),
+    ("What is the output of: print(len('Python'))?", ["5", "6", "7"], 1),
+    ("Which loop is typically used when the number of iterations is known?", ["for", "while", "repeat"], 0),
+    ("Which operator is used for exponentiation in Python?", ["^", "**", "pow"], 1),
+    ("Which function is used to get user input (text) in Python 3?", ["raw_input()", "input()", "scan()"], 1),
+    ("Which of these is a mutable data type in Python?", ["tuple", "string", "list"], 2),
+    ("Which library is commonly used for data visualization in Python?", ["numpy", "matplotlib", "math"], 1),
+]
+
+current_q = 0
+score = 0
+
+# ------------------- LOAD QUESTION -------------------
+def load_question():
+    q, options, _ = questions[current_q]
+    question_label.config(text=f"Q{current_q + 1}. {q}")
+    for i in range(3):
+        radio_btns[i].config(text=options[i])
+    selected_answer.set(-1)
+
+# ------------------- NEXT BUTTON -------------------
+def next_question():
+    global current_q, score
+    if selected_answer.get() == -1:
+        messagebox.showwarning("Warning", "Please select an option!")
+        return
+
+    if selected_answer.get() == questions[current_q][2]:
+        score += 1
+
+    current_q += 1
+    if current_q == len(questions):
+        show_result()
+    else:
+        load_question()
+
+# ------------------- SHOW RESULT -------------------
+def show_result():
+    for w in root.winfo_children():
+        w.destroy()
+
+    tk.Label(root, text="✅ Quiz Completed!", font=("Helvetica", 20, "bold"), bg=BG_COLOR, fg=HEADING_FG).pack(pady=16)
+    tk.Label(root, text=f"Your Score: {score}/{len(questions)}", font=("Helvetica", 16), fg=TEXT_FG, bg=BG_COLOR).pack(pady=6)
+
+    correct = score
+    wrong = len(questions) - score
+
+    # If matplotlib is available, show a nice matplotlib pie chart embedded in Tk
+    if MATPLOTLIB_AVAILABLE:
+        try:
+            fig, ax = plt.subplots(figsize=(4, 4))
+            ax.pie([correct, wrong], labels=["Correct", "Wrong"], autopct="%1.1f%%", colors=["#78C091", "#F87171"])
+            ax.set_title("Performance Analysis")
+
+            chart = FigureCanvasTkAgg(fig, master=root)
+            chart.draw()
+            chart.get_tk_widget().pack(pady=10)
+        except Exception:
+            # Fallback to Tkinter drawing if matplotlib fails at runtime
+            _draw_tk_pie(correct, wrong)
+    else:
+        # Draw a simple pie using Tkinter Canvas
+        _draw_tk_pie(correct, wrong)
+
+    # Buttons
+    btn_frame = tk.Frame(root, bg=BG_COLOR)
+    btn_frame.pack(pady=12)
+
+    tk.Button(btn_frame, text="Restart Quiz", command=restart_quiz, font=("Helvetica", 11, "bold"), bg=BTN_BG, fg=BTN_FG, width=14).grid(row=0, column=0, padx=8)
+    tk.Button(btn_frame, text="Exit", command=root.destroy, font=("Helvetica", 11, "bold"), bg="#F44336", fg="white", width=14).grid(row=0, column=1, padx=8)
+
+
+# ------------------- TK PIE DRAWING (fallback) -------------------
+def _draw_tk_pie(correct, wrong):
+    total = correct + wrong
+    if total == 0:
+        percent_correct = 0
+    else:
+        percent_correct = correct / total
+
+    canvas_size = 220
+    canvas = tk.Canvas(root, width=canvas_size, height=canvas_size, bg=BG_COLOR, highlightthickness=0)
+    canvas.pack(pady=8)
+
+    # Draw background circle
+    x0, y0, x1, y1 = 10, 10, canvas_size - 10, canvas_size - 10
+
+    # Angles
+    start = 90  # start from top
+    extent_correct = int(round(360 * percent_correct))
+
+    if extent_correct > 0:
+        canvas.create_arc(x0, y0, x1, y1, start=start, extent=extent_correct, fill="#78C091", outline="")
+    if extent_correct < 360:
+        canvas.create_arc(x0, y0, x1, y1, start=start + extent_correct, extent=360 - extent_correct, fill="#F87171", outline="")
+
+    # Legend and labels
+    pct_text = f"Correct: {correct}  Wrong: {wrong}"
+    canvas.create_text(canvas_size/2, canvas_size + 12, text=pct_text, font=("Helvetica", 11), fill=TEXT_FG)
+
+    # A simple percent label in the center
+    pct_label = f"{int(round(percent_correct*100))}%"
+    canvas.create_text(canvas_size/2, canvas_size/2, text=pct_label, font=("Helvetica", 18, "bold"), fill="white")
+
+
+# ------------------- RESTART -------------------
+def restart_quiz():
+    global current_q, score
+    current_q = 0
+    score = 0
+    for w in root.winfo_children():
+        w.destroy()
+    build_quiz_ui()
+    load_question()
+
+# ------------------- BUILD UI -------------------
+# Colors (pastel + professional mix)
+BG_COLOR = "#EAF4F4"
+HEADER_BG = "#A6DCEF"
+HEADING_FG = "#1B4965"
+TEXT_FG = "#2B3A55"
+BTN_BG = "#62B6B7"
+BTN_FG = "white"
+
+
+def build_quiz_ui():
+    global question_label, radio_btns, selected_answer
+
+    selected_answer = tk.IntVar()
+    selected_answer.set(-1)
+
+    header = tk.Frame(root, bg=HEADER_BG)
+    header.pack(fill=tk.X)
+    tk.Label(header, text="🎓 Quiz Performance Dashboard", font=("Helvetica", 18, "bold"), bg=HEADER_BG, fg=HEADING_FG, pady=12).pack()
+
+    content = tk.Frame(root, bg=BG_COLOR)
+    content.pack(fill=tk.BOTH, expand=True)
+
+    # Question label
+    question_label = tk.Label(content, text="", font=("Helvetica", 14, "bold"), bg=BG_COLOR, fg=TEXT_FG, wraplength=600, justify=tk.LEFT)
+    question_label.pack(pady=18, padx=20, anchor=tk.W)
+
+    # Radio buttons
+    radio_container = tk.Frame(content, bg=BG_COLOR)
+    radio_container.pack(pady=4, padx=20, anchor=tk.W)
+
+    radio_btns.clear()
+    for i in range(3):
+        r = tk.Radiobutton(radio_container, text="", variable=selected_answer, value=i, font=("Helvetica", 12), bg=BG_COLOR, activebackground=BG_COLOR)
+        r.pack(anchor=tk.W, pady=6)
+        radio_btns.append(r)
+
+    # Next button and progress
+    bottom = tk.Frame(content, bg=BG_COLOR)
+    bottom.pack(fill=tk.X, pady=14)
+
+    progress = ttk.Progressbar(bottom, maximum=len(questions), value=0)
+    progress.pack(side=tk.LEFT, padx=20, ipadx=200, pady=6, fill=tk.X, expand=True)
+
+    def _on_next_click():
+        nonlocal progress
+        next_question()
+        # update progress; if quiz finished this widget will be destroyed by show_result
+        try:
+            progress['value'] = current_q
+        except Exception:
+            pass
+
+    tk.Button(bottom, text="Next", command=_on_next_click, font=("Helvetica", 12, "bold"), bg=BTN_BG, fg=BTN_FG, width=12).pack(side=tk.RIGHT, padx=20)
+
+
+# ------------------- MAIN WINDOW -------------------
+root = tk.Tk()
+root.title("Quiz Performance Dashboard")
+root.geometry("760x540")
+root.config(bg=BG_COLOR)
+
+# Prepare radio buttons list
+radio_btns = []
+
+# Build UI and start
+build_quiz_ui()
+load_question()
+root.mainloop()
